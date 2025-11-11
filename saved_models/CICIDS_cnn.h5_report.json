@@ -1,0 +1,79 @@
+{
+  "report": {
+    "normal": {
+      "precision": 0.74,
+      "recall": 0.41,
+      "f1-score": 0.53,
+      "support": 110
+    },
+    "neptune": {
+      "precision": 0.7,
+      "recall": 0.71,
+      "f1-score": 0.7,
+      "support": 113
+    },
+    "smurf": {
+      "precision": 0.85,
+      "recall": 0.59,
+      "f1-score": 0.7,
+      "support": 114
+    },
+    "portsweep": {
+      "precision": 0.73,
+      "recall": 0.82,
+      "f1-score": 0.77,
+      "support": 65
+    },
+    "back": {
+      "precision": 0.84,
+      "recall": 0.5,
+      "f1-score": 0.63,
+      "support": 51
+    }
+  },
+  "confusion_matrix": [
+    [
+      130,
+      66,
+      64,
+      1,
+      64
+    ],
+    [
+      42,
+      42,
+      57,
+      51,
+      48
+    ],
+    [
+      52,
+      47,
+      81,
+      50,
+      46
+    ],
+    [
+      29,
+      47,
+      78,
+      51,
+      28
+    ],
+    [
+      41,
+      13,
+      24,
+      43,
+      93
+    ]
+  ],
+  "labels": [
+    "normal",
+    "neptune",
+    "smurf",
+    "portsweep",
+    "back"
+  ],
+  "accuracy": 0.772
+}

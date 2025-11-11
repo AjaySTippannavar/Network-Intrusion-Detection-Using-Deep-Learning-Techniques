@@ -1,0 +1,27 @@
+nids_project_v4_full - Quick start
+
+1) Unzip and enter directory:
+   unzip nids_project_v4_full.zip -d nids_project_v4_full
+   cd nids_project_v4_full
+
+2) Create virtualenv & activate:
+   python -m venv venv
+   # Windows:
+   .\venv\Scripts\Activate
+
+3) Install requirements:
+   pip install --upgrade pip
+   pip install -r requirements.txt
+
+4) Start dashboard:
+   python app/dashboard.py
+   Open http://127.0.0.1:8050
+
+Notes:
+- Use Datasets tab to download real datasets (KDD, NSL, UNSW). CICIDS2017 is manual.
+- After downloading, preprocess with:
+   python data/preprocess_all.py --input path/to/file.csv --out data/processed/<DATASET>
+- Then train model via UI or CLI:
+   python train.py --dataset NSL --model cnn --epochs 5
+- Evaluate via UI or CLI:
+   python evaluate.py --dataset NSL --model cnn

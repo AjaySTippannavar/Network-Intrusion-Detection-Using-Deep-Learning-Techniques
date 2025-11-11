@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>NIDS Project — Full Dashboard</title>
+<script src='https://cdn.plot.ly/plotly-2.24.1.min.js'></script>
+<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>
+<style>
+body{font-family:Inter,Roboto,Arial;margin:0;background:linear-gradient(135deg,#0f172a 0%,#3b0f70 100%);color:#e6eef8}
+.container{padding:20px;max-width:1200px}
+.card-glass{background:rgba(255,255,255,0.06);padding:16px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+.nav-tabs .nav-link{color:#e6eef8}
+#bar,#confusion,#roc,#loss{width:100%;min-height:420px;height:420px !important;max-height:420px;overflow:hidden}
+@media (max-width:992px){#bar,#confusion,#roc,#loss{min-height:320px;height:320px !important}}
+h5{color:#fff;margin-bottom:12px}
+pre.log{height:160px;overflow:auto;background:#fff;color:#000;padding:8px}
+
+/* ensure charts don't keep stacking and each card keeps consistent size */
+.card-glass { overflow: hidden; }
+.plotly .modebar { display: none !important; } /* optional: hide Plotly modebar */
+</style>
+
+</head>
+<body>
+<div class='container'>
+  <h2>🔒 NIDS Project — Full Dashboard</h2>
+  <ul class='nav nav-tabs'>
+    <li class='nav-item'><a class='nav-link active' data-bs-toggle='tab' href='#tab-datasets'>Datasets</a></li>
+    <li class='nav-item'><a class='nav-link' data-bs-toggle='tab' href='#tab-train'>Train</a></li>
+    <li class='nav-item'><a class='nav-link' data-bs-toggle='tab' href='#tab-eval'>Evaluate</a></li>
+  </ul>
+  <div class='tab-content mt-3'>
+
+    <div id='tab-datasets' class='tab-pane fade show active'>
+      <div class='card-glass'>
+        <h5>Datasets</h5>
+        <div id='ds-buttons'></div>
+        <div id='ds-status' style='margin-top:8px;color:#fff'></div>
+      </div>
+    </div>
+
+    <div id='tab-train' class='tab-pane fade'>
+      <div class='card-glass'>
+        <h5>Train Model</h5>
+        <div class='row'>
+          <div class='col-md-3'><label>Dataset</label><select id='train-dataset' class='form-select'></select></div>
+          <div class='col-md-3'><label>Model</label><select id='train-model' class='form-select'><option value='snn'>SNN</option><option value='dnn'>DNN</option><option value='cnn'>CNN</option><option value='attention'>Attention</option></select></div>
+          <div class='col-md-3'><label>Epochs</label><input id='train-epochs' type='number' value='5' class='form-control'></div>
+          <div class='col-md-3' style='display:flex;align-items:end;'><button id='btn-train' class='btn btn-primary'>Train</button></div>
+        </div>
+        <pre id='train-log' class='log' style='margin-top:8px'></pre>
+      </div>
+    </div>
+
+    <div id='tab-eval' class='tab-pane fade'>
+      <div class='card-glass'>
+        <h5>Evaluate & Charts</h5>
+        <div class='row align-items-end gy-2'>
+          <div class='col-md-3'><label>Dataset</label><select id='eval-dataset' class='form-select'></select></div>
+          <div class='col-md-3'><label>Model</label><select id='eval-model' class='form-select'><option value='snn'>SNN</option><option value='dnn'>DNN</option><option value='cnn'>CNN</option><option value='attention'>Attention</option></select></div>
+          <div class='col-md-6 d-flex justify-content-start align-items-end gap-2'><button id='btn-eval' class='btn btn-success px-4'>Load Report</button><button id='btn-download-bar' class='btn btn-outline-light'>Download Chart</button></div>
+        </div>
+
+        <div class='row mt-4 g-3 justify-content-center align-items-stretch'>
+
+          <!-- Metric bar + Confusion -->
+          <div class='col-lg-7 col-md-12'><div id='bar' class='card-glass h-100'></div></div>
+          <div class='col-lg-5 col-md-12'><div id='confusion' class='card-glass h-100'></div></div>
+
+          <!-- ROC + Loss (new panels) -->
+          <div class='col-lg-6 col-md-12 mt-3'><div class='card-glass h-100'><h5 class="text-center">ROC Curve</h5><div id='roc'></div></div></div>
+          <div class='col-lg-6 col-md-12 mt-3'><div class='card-glass h-100'><h5 class="text-center">Training & Validation Loss</h5><div id='loss'></div></div></div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+async function getDatasets(){ const r=await fetch('/api/datasets'); return r.json(); }
+async function init(){ const ds=await getDatasets(); const dsButtons=document.getElementById('ds-buttons'); const td=document.getElementById('train-dataset'); const ed=document.getElementById('eval-dataset'); ds.forEach(d=>{ const btn=document.createElement('button'); btn.className='btn btn-outline-light btn-sm'; btn.style.margin='4px'; btn.innerText='Download '+d; btn.onclick=async()=>{ document.getElementById('ds-status').innerText='Downloading '+d+'...'; const res=await fetch('/api/download/'+d,{method:'POST'}); const j=await res.json(); document.getElementById('ds-status').innerText=JSON.stringify(j); }; dsButtons.appendChild(btn); const opt=document.createElement('option'); opt.value=d; opt.innerText=d; td.appendChild(opt); ed.appendChild(opt.cloneNode(true)); }); }
+init();
+
+document.getElementById('btn-train').onclick = async ()=> {
+  const d=document.getElementById('train-dataset').value; const m=document.getElementById('train-model').value; const epochs=document.getElementById('train-epochs').value;
+  document.getElementById('train-log').textContent='Starting training...\n';
+  try {
+    const res=await fetch(`/api/train/${d}/${m}`,{method:'POST'});
+    const j=await res.json();
+    document.getElementById('train-log').textContent += JSON.stringify(j,'',2)+'\n';
+  } catch(e){
+    document.getElementById('train-log').textContent += 'Error: '+e.message+'\n';
+  }
+}
+
+function safePurge(id){ try{ Plotly.purge(id); }catch(e){} }
+
+document.getElementById('btn-eval').onclick = async ()=> {
+  const d=document.getElementById('eval-dataset').value; const m=document.getElementById('eval-model').value;
+  const res=await fetch(`/api/report/${d}/${m}`);
+  if(!res.ok){ alert('Server error: '+res.statusText); return; }
+  const j=await res.json();
+  if(j.error){ alert(j.error); return; }
+
+  // bar: Precision/Recall/F1 per label
+  const report=j.report||{};
+  const labels=j.labels || Object.keys(report).filter(k=>!['accuracy'].includes(k));
+  const precisions=[], recalls=[], f1s=[];
+  labels.forEach(l=>{ const v=report[l]||{}; precisions.push(v.precision||0); recalls.push(v.recall||0); f1s.push(v['f1-score']||0); });
+
+  safePurge('bar'); safePurge('confusion'); safePurge('roc'); safePurge('loss');
+
+  Plotly.newPlot('bar',[
+    {x:labels,y:precisions,name:'Precision',type:'bar'},
+    {x:labels,y:recalls,name:'Recall',type:'bar'},
+    {x:labels,y:f1s,name:'F1',type:'bar'}
+  ],{barmode:'group',title:d+' / '+m+' metrics',paper_bgcolor:'#ffffff',plot_bgcolor:'#ffffff',font:{color:'#000'}});
+
+  // confusion matrix
+  const cm = j.confusion_matrix || (j.report && j.report._confusion) || null;
+  if(cm){
+    Plotly.newPlot('confusion',[{z:cm,x:labels,y:labels,type:'heatmap',colorscale:'Viridis'}],{title:'Confusion Matrix',paper_bgcolor:'#ffffff',plot_bgcolor:'#ffffff',font:{color:'#000'}});
+  } else {
+    document.getElementById('confusion').innerHTML = '<div style="color:#fff;padding:16px">No confusion matrix available</div>';
+  }
+
+  // ROC: expects {fpr:[], tpr:[], auc:float} OR array of traces
+  if(j.roc){
+    try{
+      const roc = j.roc;
+      // If ROC is provided as traces for Plotly, use them directly.
+      if(Array.isArray(roc)){
+        Plotly.newPlot('roc', roc, {title:'ROC Curve', xaxis:{title:'False Positive Rate'}, yaxis:{title:'True Positive Rate'}, paper_bgcolor:'#ffffff',plot_bgcolor:'#ffffff',font:{color:'#000'}});
+      } else if(roc.fpr && roc.tpr){
+        const trace = { x: roc.fpr, y: roc.tpr, type: 'scatter', mode: 'lines+markers', name: (roc.auc ? ('AUC='+roc.auc.toFixed(3)) : 'ROC') };
+        const random = { x:[0,1], y:[0,1], type:'scatter', mode:'lines', name:'Random', line:{dash:'dash'}};
+        Plotly.newPlot('roc',[trace, random], {title:'ROC Curve', xaxis:{title:'False Positive Rate'}, yaxis:{title:'True Positive Rate'}, paper_bgcolor:'#ffffff',plot_bgcolor:'#ffffff',font:{color:'#000'}});
+      } else {
+        document.getElementById('roc').innerHTML = '<div style="color:#fff;padding:16px">ROC data format not recognized</div>';
+      }
+    }catch(e){
+      document.getElementById('roc').innerHTML = '<div style="color:#fff;padding:16px">Error rendering ROC</div>';
+      console.error(e);
+    }
+  } else {
+    document.getElementById('roc').innerHTML = '<div style="color:#fff;padding:16px">No ROC data available</div>';
+  }
+
+  // Loss: expects {train:[], val:[], epochs: N}
+  if(j.loss && (j.loss.train || j.loss.val)){
+    try{
+      const loss = j.loss;
+      const epochs = loss.epochs || (loss.train && loss.train.length) || 0;
+      const x = Array.from({length:epochs},(_,i)=>i+1);
+      const traces = [];
+      if(loss.train) traces.push({x:x, y: loss.train, name:'Train Loss', type:'scatter', mode:'lines+markers'});
+      if(loss.val) traces.push({x:x, y: loss.val, name:'Val Loss', type:'scatter', mode:'lines+markers'});
+      Plotly.newPlot('loss', traces, {title:'Training vs Validation Loss', xaxis:{title:'Epoch'}, yaxis:{title:'Loss'}, paper_bgcolor:'#ffffff',plot_bgcolor:'#ffffff',font:{color:'#000'}});
+    }catch(e){
+      document.getElementById('loss').innerHTML = '<div style="color:#fff;padding:16px">Error rendering Loss chart</div>';
+      console.error(e);
+    }
+  } else {
+    document.getElementById('loss').innerHTML = '<div style="color:#fff;padding:16px">No training history available</div>';
+  }
+
+  // download button for bar chart
+  document.getElementById('btn-download-bar').onclick = ()=>Plotly.downloadImage(document.getElementById('bar'),{format:'png',filename:d+'_'+m+'_metrics'});
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
